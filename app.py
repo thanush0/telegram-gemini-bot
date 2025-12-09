@@ -1,3 +1,12 @@
+import sys
+import types
+
+imghdr = types.ModuleType("imghdr")
+imghdr.what = lambda *args, **kwargs: None
+sys.modules["imghdr"] = imghdr
+
+
+
 import os
 import re
 import requests
