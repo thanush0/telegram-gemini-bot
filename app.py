@@ -15,7 +15,7 @@ import google.generativeai as genai
 
 # ---------------- TELEGRAM ----------------
 from telegram import Bot, Update
-from telegram.ext import Dispatcher, MessageHandler, Filters  # <-- PTB v13 style
+from telegram.ext import Dispatcher, MessageHandler, Filters  # PTB v13 style
 
 # ------------- CONFIG -----------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -58,7 +58,8 @@ def reply_handler(update, context):
 
 
 # Register handler
-dispatcher.add_handler(MessageHandler(Filters.text, reply_handler))  # <-- PTB v13
+dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, reply_handler))
+
 
 # ------------------ WEBHOOK ------------------
 @app.route(WEBHOOK_PATH, methods=["POST"])
