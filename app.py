@@ -1,20 +1,21 @@
 import sys
 import types
 
+# Workaround for imghdr issue on Render
 imghdr = types.ModuleType("imghdr")
 imghdr.what = lambda *args, **kwargs: None
 sys.modules["imghdr"] = imghdr
-
-
 
 import os
 import re
 import requests
 from flask import Flask, request
+
 import google.generativeai as genai
 
+# ---------------- TELEGRAM ----------------
 from telegram import Bot, Update
-from telegram.ext import Dispatcher, MessageHandler, filters
+from telegram.ext import Dispatcher, MessageHandler, Filters  # <-- PTB v13 style
 
 # ------------- CONFIG -----------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -26,13 +27,11 @@ WEBHOOK_PATH = "/bot"
 app = Flask(__name__)
 bot = Bot(token=BOT_TOKEN)
 
-# Dispatcher (sync)
+# Dispatcher (sync style)
 dispatcher = Dispatcher(bot, None, workers=1)
 
 # Gemini config
 genai.configure(api_key=GEMINI_API_KEY)
-
-# Updated Gemini model
 model = genai.GenerativeModel("models/gemini-1.5-flash")
 
 
@@ -43,27 +42,23 @@ def reply_handler(update, context):
     try:
         ai_output = model.generate_content(text).text
 
-        # Remove code blocks and markdown/HTML
+        # Clean output
         ai_output = re.sub(r"```.*?```", "", ai_output, flags=re.DOTALL)
         ai_output = re.sub(r"\*\*(.*?)\*\*", r"\1", ai_output)
         ai_output = re.sub(r"__(.*?)__", r"\1", ai_output)
         ai_output = re.sub(r"`(.*?)`", r"\1", ai_output)
         ai_output = re.sub(r"#+\s*(.*)", r"\1", ai_output)
         ai_output = re.sub(r"---", "", ai_output)
-
         ai_output = ai_output.strip()
 
     except Exception as e:
         ai_output = f"Gemini Error: {str(e)}"
 
-    bot.send_message(
-        chat_id=update.message.chat.id,
-        text=ai_output
-    )
+    bot.send_message(chat_id=update.message.chat.id, text=ai_output)
 
 
-dispatcher.add_handler(MessageHandler(filters.TEXT, reply_handler))
-
+# Register handler
+dispatcher.add_handler(MessageHandler(Filters.text, reply_handler))  # <-- PTB v13
 
 # ------------------ WEBHOOK ------------------
 @app.route(WEBHOOK_PATH, methods=["POST"])
@@ -79,7 +74,7 @@ def home():
     return "Telegram Gemini Bot Running!"
 
 
-# ------------------ SET WEBHOOK --------------
+# ------------------ SET WEBHOOK ------------------
 def set_webhook():
     url = f"{PUBLIC_URL}{WEBHOOK_PATH}"
     print("Setting webhook:", url)
@@ -87,7 +82,6 @@ def set_webhook():
     response = requests.get(
         f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook?url={url}"
     )
-
     print("Webhook response:", response.text)
 
 
