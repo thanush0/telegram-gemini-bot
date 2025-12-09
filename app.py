@@ -32,7 +32,7 @@ dispatcher = Dispatcher(bot, None, workers=1)
 
 # Gemini config
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("models/gemini-flash-latest")
 
 
 # ------------------ HANDLER ------------------
