@@ -1,46 +1,31 @@
-import sys
-import types
-
-# Workaround for imghdr issue on Render
-imghdr = types.ModuleType("imghdr")
-imghdr.what = lambda *args, **kwargs: None
-sys.modules["imghdr"] = imghdr
-
 import os
 import re
-import requests
-from flask import Flask, request
+import logging
 from dotenv import load_dotenv
-
-load_dotenv()  # Load environment variables from .env file
 
 import google.generativeai as genai
 
 # ---------------- TELEGRAM ----------------
-from telegram import Bot, Update
-from telegram.ext import Dispatcher, MessageHandler, Filters  # PTB v13 style
+from telegram.ext import Updater, MessageHandler, Filters
+
+# Load environment variables
+load_dotenv()
 
 # ------------- CONFIG -----------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-PUBLIC_URL = os.environ.get("PUBLIC_URL")  # Render / hosting URL
-WEBHOOK_PATH = "/bot"
-# --------------------------------------
 
-app = Flask(__name__)
-bot = Bot(token=BOT_TOKEN)
-
-# Dispatcher (sync style)
-dispatcher = Dispatcher(bot, None, workers=1)
+# Setup logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 # Gemini config
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.5-flash")
 
-
 # ------------------ HANDLER ------------------
 def reply_handler(update, context):
     text = update.message.text
+    logging.info(f"Received message: {text}")
 
     try:
         ai_output = model.generate_content(text).text
@@ -55,42 +40,22 @@ def reply_handler(update, context):
         ai_output = ai_output.strip()
 
     except Exception as e:
+        logging.error(f"Gemini Error: {e}")
         ai_output = f"Gemini Error: {str(e)}"
 
-    bot.send_message(chat_id=update.message.chat.id, text=ai_output)
-
-
-# Register handler
-dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, reply_handler))
-
-
-# ------------------ WEBHOOK ------------------
-@app.route(WEBHOOK_PATH, methods=["POST"])
-def webhook():
-    json_data = request.get_json(force=True)
-    update = Update.de_json(json_data, bot)
-    dispatcher.process_update(update)
-    return "OK"
-
-
-@app.route("/")
-def home():
-    return "Telegram Gemini Bot Running!"
-
-
-# ------------------ SET WEBHOOK ------------------
-def set_webhook():
-    url = f"{PUBLIC_URL}{WEBHOOK_PATH}"
-    print("Setting webhook:", url)
-
-    response = requests.get(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook?url={url}"
-    )
-    print("Webhook response:", response.text)
-
+    update.message.reply_text(ai_output)
 
 # ------------------ MAIN ---------------------
 if __name__ == "__main__":
-    print("🚀 Starting Flask...")
-    set_webhook()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    logging.info("🚀 Starting Bot in Polling Mode...")
+    
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dispatcher = updater.dispatcher
+
+    # Register handler
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, reply_handler))
+
+    # Start polling
+    updater.start_polling()
+    logging.info("Bot is running. Press Ctrl+C to stop.")
+    updater.idle()
