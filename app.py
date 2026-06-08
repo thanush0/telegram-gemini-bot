@@ -1,6 +1,7 @@
 import os
 import re
 import logging
+import time
 from dotenv import load_dotenv
 
 import google.generativeai as genai
@@ -27,23 +28,37 @@ def reply_handler(update, context):
     text = update.message.text
     logging.info(f"Received message: {text}")
 
-    try:
-        ai_output = model.generate_content(text).text
+    # Retry logic for rate limits
+    max_retries = 3
+    backoff_time = 30 # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            ai_output = model.generate_content(text).text
 
-        # Clean output
-        ai_output = re.sub(r"```.*?```", "", ai_output, flags=re.DOTALL)
-        ai_output = re.sub(r"\*\*(.*?)\*\*", r"\1", ai_output)
-        ai_output = re.sub(r"__(.*?)__", r"\1", ai_output)
-        ai_output = re.sub(r"`(.*?)`", r"\1", ai_output)
-        ai_output = re.sub(r"#+\s*(.*)", r"\1", ai_output)
-        ai_output = re.sub(r"---", "", ai_output)
-        ai_output = ai_output.strip()
+            # Clean output
+            ai_output = re.sub(r"```.*?```", "", ai_output, flags=re.DOTALL)
+            ai_output = re.sub(r"\*\*(.*?)\*\*", r"\1", ai_output)
+            ai_output = re.sub(r"__(.*?)__", r"\1", ai_output)
+            ai_output = re.sub(r"`(.*?)`", r"\1", ai_output)
+            ai_output = re.sub(r"#+\s*(.*)", r"\1", ai_output)
+            ai_output = re.sub(r"---", "", ai_output)
+            ai_output = ai_output.strip()
+            
+            update.message.reply_text(ai_output)
+            return # Success
 
-    except Exception as e:
-        logging.error(f"Gemini Error: {e}")
-        ai_output = f"Gemini Error: {str(e)}"
-
-    update.message.reply_text(ai_output)
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str and attempt < max_retries - 1:
+                logging.warning(f"Quota exceeded. Retrying in {backoff_time} seconds... (Attempt {attempt+1}/{max_retries})")
+                time.sleep(backoff_time)
+                backoff_time *= 2 # Exponential backoff
+                continue
+            else:
+                logging.error(f"Gemini Error: {e}")
+                update.message.reply_text(f"Gemini Error: {error_str}")
+                return
 
 # ------------------ MAIN ---------------------
 if __name__ == "__main__":
