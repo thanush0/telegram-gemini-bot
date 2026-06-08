@@ -10,6 +10,9 @@ import os
 import re
 import requests
 from flask import Flask, request
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
 
 import google.generativeai as genai
 
