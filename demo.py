@@ -1,8 +1,15 @@
+import os
 import google.generativeai as genai
+from dotenv import load_dotenv
 
-genai.configure(api_key="REDACTED_BY_GEMINI_CLI")
+load_dotenv()  # Load variables from .env
 
-model = genai.GenerativeModel("gemini-2.0-flash")
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-response = model.generate_content("Hello")
-print(response.text)
+model = genai.GenerativeModel("gemini-2.5-flash")
+
+try:
+    response = model.generate_content("Hello")
+    print(response.text)
+except Exception as e:
+    print(f"Error: {e}")

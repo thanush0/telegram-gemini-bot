@@ -35,7 +35,7 @@ dispatcher = Dispatcher(bot, None, workers=1)
 
 # Gemini config
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("models/gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 # ------------------ HANDLER ------------------
@@ -93,4 +93,4 @@ def set_webhook():
 if __name__ == "__main__":
     print("🚀 Starting Flask...")
     set_webhook()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)
