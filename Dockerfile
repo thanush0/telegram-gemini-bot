@@ -18,5 +18,5 @@ COPY . .
 # Expose port
 EXPOSE 5000
 
-# Run with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+# Run the bot directly
+CMD ["python", "app.py"]
